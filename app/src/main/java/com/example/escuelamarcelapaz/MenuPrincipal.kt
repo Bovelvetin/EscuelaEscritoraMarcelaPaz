@@ -10,6 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.background
 
 // Secciones del menú lateral
 enum class Seccion {
@@ -41,15 +42,25 @@ fun MenuPrincipal(
         drawerState = drawerState,
         drawerContent = {
             ModalDrawerSheet {
-                // Encabezado del menú
-                Column(Modifier.padding(16.dp)) {
-                    Text("Escuela Escritora Marcela Paz", style = MaterialTheme.typography.titleMedium)
+                // Encabezado
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.primaryContainer)
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        "Escuela Escritora Marcela Paz",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
                     Spacer(Modifier.height(4.dp))
-                    Text(nombre, style = MaterialTheme.typography.bodyLarge)
-                    Text(rol.etiqueta, style = MaterialTheme.typography.bodyMedium)
-                    Text(correo, style = MaterialTheme.typography.bodySmall)
+                    Text(nombre, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text(rol.etiqueta, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text(correo, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
-                HorizontalDivider()
+                // Franja amarilla oficial bajo el encabezado
+                HorizontalDivider(thickness = 4.dp, color = MaterialTheme.colorScheme.secondaryContainer)
 
                 Seccion.values().forEach { item ->
                     NavigationDrawerItem(
@@ -84,7 +95,12 @@ fun MenuPrincipal(
                         IconButton(onClick = { scope.launch { drawerState.open() } }) {
                             Icon(Icons.Default.Menu, contentDescription = "Abrir menú")
                         }
-                    }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
                 )
             }
         ) { padding ->

@@ -1,58 +1,58 @@
 package com.example.escuelamarcelapaz.ui.theme
 
-import android.app.Activity
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+// Tema claro:
+//  - primary / secondary: tonos oscuros (botones, enlaces, selección)
+//  - primaryContainer / secondaryContainer: los colores OFICIALES (barras y fondos)
+private val EsquemaClaro = lightColorScheme(
+    primary = AzulOscuro,
+    onPrimary = Color.White,
+    primaryContainer = AzulOficial,
+    onPrimaryContainer = TextoSobreAzulOficial,
+    secondary = AmarilloOscuro,
+    onSecondary = Color.White,
+    secondaryContainer = AmarilloOficial,
+    onSecondaryContainer = TextoSobreAmarilloOficial,
+    tertiary = VerdeResuelto,
+    onTertiary = Color.White,
+    background = Color(0xFFFAFDFC),
+    surface = Color(0xFFFAFDFC)
 )
 
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+// Tema oscuro: aquí los colores oficiales sí funcionan como color principal,
+// porque se leen bien sobre fondo oscuro
+private val EsquemaOscuro = darkColorScheme(
+    primary = AzulOficial,
+    onPrimary = Color(0xFF003733),
+    primaryContainer = AzulContenedorOscuro,
+    onPrimaryContainer = AzulClaroSobreOscuro,
+    secondary = AmarilloOficial,
+    onSecondary = Color(0xFF353100),
+    secondaryContainer = AmarilloContenedorOscuro,
+    onSecondaryContainer = AmarilloOficial,
+    tertiary = VerdeSobreOscuro,
+    onTertiary = Color(0xFF003910),
+    background = Color(0xFF0F1514),
+    surface = Color(0xFF0F1514)
 )
 
 @Composable
 fun EscuelaMarcelaPazTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
+    // Sin "color dinámico" de Android 12+, para que mande nuestra paleta
+    val colores = if (darkTheme) EsquemaOscuro else EsquemaClaro
 
     MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
+        colorScheme = colores,
+        typography = Typography, // Viene de Type.kt
         content = content
     )
 }

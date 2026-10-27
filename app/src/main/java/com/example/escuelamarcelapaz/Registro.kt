@@ -126,7 +126,11 @@ fun RegistroScreen(
                     else -> onRegistrar(nombre, correo, contrasena, rol)
                 }
             },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            )
         ) {
             Text("Crear cuenta")
         }

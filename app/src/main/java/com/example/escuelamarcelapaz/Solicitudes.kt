@@ -154,7 +154,14 @@ private fun BandejaSolicitudes(
     ) {
         // Solo el Docente puede crear solicitudes
         if (!esInterno) {
-            Button(onClick = onNueva, modifier = Modifier.fillMaxWidth()) {
+            Button(
+                onClick = onNueva,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            ) {
                 Text("Nueva solicitud")
             }
             Spacer(Modifier.height(16.dp))
@@ -327,7 +334,11 @@ private fun GestionSolicitud(
             }
             Button(
                 onClick = { onGuardar(estado, respuesta.trim()) },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
             ) {
                 Text("Guardar")
             }
@@ -418,7 +429,11 @@ private fun FormularioSolicitud(
                         onEnviar(asunto.trim(), foto)
                     }
                 },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
             ) {
                 Text("Enviar")
             }
