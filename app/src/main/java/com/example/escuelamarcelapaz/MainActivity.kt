@@ -28,16 +28,18 @@ class MainActivity : ComponentActivity() {
                     var correoSesion by rememberSaveable { mutableStateOf<String?>(null) }
                     var rolSesion by rememberSaveable { mutableStateOf<String?>(null) }
 
-                    if (correoSesion == null || rolSesion == null) {
-                        LoginScreen { correo, rol ->
-                            correoSesion = correo
-                            rolSesion = rol.name
+                    val correo = correoSesion
+                    val rol = rolSesion
+
+                    if (correo == null || rol == null) {
+                        LoginScreen { correoIngresado, rolElegido ->
+                            correoSesion = correoIngresado
+                            rolSesion = rolElegido.name
                         }
                     } else {
-                        // PantallaInicio
-                        PantallaInicio(
-                            correo = correoSesion!!,
-                            rol = Rol.valueOf(rolSesion!!),
+                        MenuPrincipal(
+                            correo = correo,
+                            rol = Rol.valueOf(rol),
                             onCerrarSesion = {
                                 correoSesion = null
                                 rolSesion = null
