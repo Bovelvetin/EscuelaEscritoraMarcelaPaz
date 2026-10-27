@@ -106,24 +106,3 @@ fun LoginScreen(onLoginExitoso: (correo: String, rol: Rol) -> Unit) {
         }
     }
 }
-
-// Función PantallaInicio
-@Composable
-fun PantallaInicio(correo: String, rol: Rol, onCerrarSesion: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text("¡Bienvenido/a!", style = MaterialTheme.typography.headlineMedium)
-        Spacer(Modifier.height(8.dp))
-        Text("Sesión iniciada como ${rol.etiqueta}")
-        Text(correo)
-        Spacer(Modifier.height(24.dp))
-        OutlinedButton(onClick = onCerrarSesion) {
-            Text("Cerrar sesión")
-        }
-    }
-}

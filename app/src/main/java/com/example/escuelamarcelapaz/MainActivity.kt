@@ -17,8 +17,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.escuelamarcelapaz.ui.theme.EscuelaMarcelaPazTheme
+import androidx.activity.viewModels
 
 class MainActivity : ComponentActivity() {
+
+    // Lista de solicitudes compartida por todos los usuarios mientras la app esté abierta
+    private val solicitudesViewModel: SolicitudesViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -40,6 +45,7 @@ class MainActivity : ComponentActivity() {
                         MenuPrincipal(
                             correo = correo,
                             rol = Rol.valueOf(rol),
+                            solicitudesViewModel = solicitudesViewModel,
                             onCerrarSesion = {
                                 correoSesion = null
                                 rolSesion = null
