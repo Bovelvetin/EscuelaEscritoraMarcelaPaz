@@ -21,8 +21,9 @@ import androidx.activity.viewModels
 
 class MainActivity : ComponentActivity() {
 
-    // Lista de solicitudes compartida por todos los usuarios mientras la app esté abierta
+    // Ambos ViewModels viven a nivel de clase, fuera de onCreate
     private val solicitudesViewModel: SolicitudesViewModel by viewModels()
+    private val usuariosViewModel: UsuariosViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,25 +31,54 @@ class MainActivity : ComponentActivity() {
         setContent {
             EscuelaMarcelaPazTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
+                    // Sesión: solo guardamos el correo; el resto se busca en las cuentas
                     var correoSesion by rememberSaveable { mutableStateOf<String?>(null) }
-                    var rolSesion by rememberSaveable { mutableStateOf<String?>(null) }
+                    // true = se muestra el registro en vez del login
+                    var enRegistro by rememberSaveable { mutableStateOf(false) }
+                    // Aviso que se muestra en el login (por ejemplo, "Cuenta creada")
+                    var mensaje by rememberSaveable { mutableStateOf<String?>(null) }
 
-                    val correo = correoSesion
-                    val rol = rolSesion
+                    // Usuario de la sesión actual (null si no hay sesión o no existe)
+                    val usuario = correoSesion?.let { usuariosViewModel.buscar(it) }
 
-                    if (correo == null || rol == null) {
-                        LoginScreen { correoIngresado, rolElegido ->
-                            correoSesion = correoIngresado
-                            rolSesion = rolElegido.name
-                        }
-                    } else {
-                        MenuPrincipal(
-                            correo = correo,
-                            rol = Rol.valueOf(rol),
+                    // Elige la pantalla según el estado
+                    when {
+                        usuario != null -> MenuPrincipal(
+                            nombre = usuario.nombre,
+                            correo = usuario.correo,
+                            rol = usuario.rol,
                             solicitudesViewModel = solicitudesViewModel,
-                            onCerrarSesion = {
-                                correoSesion = null
-                                rolSesion = null
+                            onCerrarSesion = { correoSesion = null }
+                        )
+
+                        enRegistro -> RegistroScreen(
+                            onRegistrar = { nombre, correo, contrasena, rol ->
+                                val error = usuariosViewModel.registrar(nombre, correo, contrasena, rol)
+                                if (error == null) {
+                                    // Cuenta creada: vuelve al login con un aviso
+                                    mensaje = "Cuenta creada. Ya puedes iniciar sesión."
+                                    enRegistro = false
+                                }
+                                error // Devuelve el error (o null) a la pantalla
+                            },
+                            onVolver = { enRegistro = false }
+                        )
+
+                        else -> LoginScreen(
+                            mensaje = mensaje,
+                            onIniciarSesion = { correo, contrasena ->
+                                val u = usuariosViewModel.iniciarSesion(correo, contrasena)
+                                if (u == null) {
+                                    "Correo o contraseña incorrectos"
+                                } else {
+                                    mensaje = null
+                                    correoSesion = u.correo // Esto abre el menú principal
+                                    null
+                                }
+                            },
+                            onIrARegistro = {
+                                mensaje = null
+                                enRegistro = true
                             }
                         )
                     }

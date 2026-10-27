@@ -27,6 +27,7 @@ enum class Seccion {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MenuPrincipal(
+    nombre: String,
     correo: String,
     rol: Rol,
     solicitudesViewModel: SolicitudesViewModel, // Lista compartida, viene de MainActivity
@@ -44,6 +45,7 @@ fun MenuPrincipal(
                 Column(Modifier.padding(16.dp)) {
                     Text("Escuela Escritora Marcela Paz", style = MaterialTheme.typography.titleMedium)
                     Spacer(Modifier.height(4.dp))
+                    Text(nombre, style = MaterialTheme.typography.bodyLarge)
                     Text(rol.etiqueta, style = MaterialTheme.typography.bodyMedium)
                     Text(correo, style = MaterialTheme.typography.bodySmall)
                 }
@@ -92,7 +94,7 @@ fun MenuPrincipal(
                     .fillMaxSize()
             ) {
                 when (seccion) {
-                    Seccion.INICIO -> PantallaBienvenida(correo, rol)
+                    Seccion.INICIO -> PantallaBienvenida(nombre, correo, rol)
                     // Se le pasa el rol para que la pantalla muestre lo que corresponde
                     Seccion.SOLICITUDES -> PantallaSolicitudes(correo, rol, solicitudesViewModel)
                 }
@@ -102,23 +104,7 @@ fun MenuPrincipal(
 }
 
 @Composable
-fun PantallaBienvenida(correo: String, rol: Rol) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text("¡Bienvenido/a!", style = MaterialTheme.typography.headlineMedium)
-        Spacer(Modifier.height(8.dp))
-        Text("Sesión iniciada como ${rol.etiqueta}")
-        Text(correo)
-        Spacer(Modifier.height(16.dp))
-        // El mensaje cambia según el rol
-        Text(
-            if (rol == Rol.INTERNO) "Abre el menú (☰) para gestionar las solicitudes."
-            else "Abre el menú (☰) para crear solicitudes."
-        )
-    }
+fun PantallaBienvenida(nombre: String, correo: String, rol: Rol) {
+    // ...dentro del Column, cambia el primer Text por:
+    Text("¡Bienvenido/a, $nombre!", style = MaterialTheme.typography.headlineMedium)
 }
