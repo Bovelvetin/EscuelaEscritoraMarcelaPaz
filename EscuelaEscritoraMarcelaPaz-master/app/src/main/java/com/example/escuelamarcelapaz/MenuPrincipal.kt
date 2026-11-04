@@ -1,0 +1,130 @@
+package com.example.escuelamarcelapaz
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.background
+
+// Secciones del menú lateral
+enum class Seccion {
+    INICIO,
+    SOLICITUDES;
+
+    // El nombre de la sección depende del rol:
+    // el Docente ve "Mis solicitudes" y el Interno "Bandeja de solicitudes"
+    fun titulo(rol: Rol): String = when (this) {
+        INICIO -> "Inicio"
+        SOLICITUDES -> when (rol) {
+            Rol.esInterno -> "Bandeja de solicitudes"
+            Rol.esAdministrador -> "Clasificar prioridades"
+            else -> "Mis solicitudes"
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MenuPrincipal(
+    nombre: String,
+    correo: String,
+    rol: Rol,
+    solicitudesViewModel: SolicitudesViewModel, // Lista compartida, viene de MainActivity
+    onCerrarSesion: () -> Unit
+) {
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+    var seccion by rememberSaveable { mutableStateOf(Seccion.INICIO) }
+
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet {
+                // Encabezado
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.primaryContainer)
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        "Escuela Escritora Marcela Paz",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(nombre, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text(rol.etiqueta, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text(correo, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                }
+                // Franja amarilla oficial bajo el encabezado
+                HorizontalDivider(thickness = 4.dp, color = MaterialTheme.colorScheme.secondaryContainer)
+
+                Seccion.values().forEach { item ->
+                    NavigationDrawerItem(
+                        label = { Text(item.titulo(rol)) },
+                        selected = seccion == item,
+                        onClick = {
+                            seccion = item
+                            scope.launch { drawerState.close() }
+                        },
+                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                    )
+                }
+                HorizontalDivider()
+
+                NavigationDrawerItem(
+                    label = { Text("Cerrar sesión") },
+                    selected = false,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        onCerrarSesion()
+                    },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                )
+            }
+        }
+    ) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text(seccion.titulo(rol)) },
+                    navigationIcon = {
+                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                            Icon(Icons.Default.Menu, contentDescription = "Abrir menú")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                )
+            }
+        ) { padding ->
+            Box(
+                Modifier
+                    .padding(padding)
+                    .fillMaxSize()
+            ) {
+                when (seccion) {
+                    Seccion.INICIO -> PantallaBienvenida(nombre, correo, rol)
+                    // Se le pasa el rol para que la pantalla muestre lo que corresponde
+                    Seccion.SOLICITUDES -> PantallaSolicitudes(correo, rol, solicitudesViewModel)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PantallaBienvenida(nombre: String, correo: String, rol: Rol) {
+    // ...dentro del Column, cambia el primer Text por:
+    Text("¡Bienvenido/a, $nombre!", style = MaterialTheme.typography.headlineMedium)
+}
