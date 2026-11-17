@@ -14,18 +14,11 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 
-// ---------------------------------------------------------------
-// REGISTRO DE USUARIO
-// - onRegistrar: crea la cuenta y devuelve un mensaje de error,
-//   o null si todo salió bien
-// - onVolver: regresa al login sin crear cuenta
-// ---------------------------------------------------------------
 @Composable
 fun RegistroScreen(
     onRegistrar: (nombre: String, correo: String, contrasena: String, rol: Rol) -> String?,
     onVolver: () -> Unit
 ) {
-    // Estado del formulario
     var nombre by rememberSaveable { mutableStateOf("") }
     var correo by rememberSaveable { mutableStateOf("") }
     var contrasena by rememberSaveable { mutableStateOf("") }
@@ -34,14 +27,13 @@ fun RegistroScreen(
     var mostrarContrasena by rememberSaveable { mutableStateOf(false) }
     var error by rememberSaveable { mutableStateOf<String?>(null) }
 
-    // Las dos contraseñas comparten esta transformación (ver u ocultar)
     val transformacion = if (mostrarContrasena) VisualTransformation.None
     else PasswordVisualTransformation()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState()) // Permite desplazar si no cabe todo
+            .verticalScroll(rememberScrollState())
             .padding(24.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
@@ -95,13 +87,14 @@ fun RegistroScreen(
         )
         Spacer(Modifier.height(16.dp))
 
-        // Selección de rol: queda asociado a la cuenta
-        Text("Registrarme como:", style = MaterialTheme.typography.titleMedium)
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        // Selección de rol en columna para evitar desbordes con 3 opciones
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Text("Registrarme como:", style = MaterialTheme.typography.titleMedium)
             Rol.values().forEach { opcion ->
-                RadioButton(selected = rol == opcion, onClick = { rol = opcion })
-                Text(opcion.etiqueta)
-                Spacer(Modifier.width(16.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(selected = rol == opcion, onClick = { rol = opcion })
+                    Text(opcion.etiqueta)
+                }
             }
         }
 
@@ -115,14 +108,11 @@ fun RegistroScreen(
             onClick = {
                 val correoValido = android.util.Patterns.EMAIL_ADDRESS
                     .matcher(correo.trim()).matches()
-                // El "when" revisa en orden y se queda con el primer error que encuentre
                 error = when {
                     nombre.isBlank() -> "Ingresa tu nombre"
                     !correoValido -> "Ingresa un correo válido"
                     contrasena.length < 6 -> "La contraseña debe tener al menos 6 caracteres"
                     contrasena != confirmar -> "Las contraseñas no coinciden"
-                    // Si las validaciones pasan, se intenta crear la cuenta.
-                    // Devuelve un error (por ejemplo, correo repetido) o null si salió bien.
                     else -> onRegistrar(nombre, correo, contrasena, rol)
                 }
             },

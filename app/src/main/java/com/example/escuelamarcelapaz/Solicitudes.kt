@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.Dispatchers
@@ -32,8 +33,7 @@ import java.util.Date
 import java.util.Locale
 
 // ---------------------------------------------------------------
-// ESTADOS POSIBLES DE UN TICKET
-// Los cambia el usuario Interno al gestionar la solicitud.
+// ESTADOS POSIBLES DE UN TICKET (gestionados por Interno)
 // ---------------------------------------------------------------
 enum class EstadoSolicitud(val etiqueta: String) {
     ABIERTA("Abierta"),
@@ -42,38 +42,44 @@ enum class EstadoSolicitud(val etiqueta: String) {
 }
 
 // ---------------------------------------------------------------
+// PRIORIDADES DE UN TICKET (clasificadas por Administrador)
+// El orden define la urgencia para ordenar la bandeja del Interno.
+// ---------------------------------------------------------------
+enum class PrioridadSolicitud(val etiqueta: String, val nivelOrden: Int) {
+    CRITICA("Crítica", 1),
+    ALTA("Alta", 2),
+    MEDIA("Media", 3),
+    BAJA("Baja", 4),
+    SIN_ASIGNAR("Sin asignar", 5)
+}
+
+// ---------------------------------------------------------------
 // MODELO DE DATOS: un ticket
 // ---------------------------------------------------------------
 data class Solicitud(
-    val numero: Int,                  // Número del ticket
-    val asunto: String,               // Lo que escribió el Docente
-    val fotoUri: Uri?,                // Foto opcional (null si no hay)
-    val solicitante: String,          // Correo de quien creó el ticket
-    val fecha: String,                // Fecha y hora de creación
+    val numero: Int,
+    val asunto: String,
+    val fotoUri: Uri?,
+    val solicitante: String,
+    val fecha: String,
     val estado: EstadoSolicitud = EstadoSolicitud.ABIERTA,
-    val respuesta: String = ""        // Respuesta escrita por el Interno
+    val prioridad: PrioridadSolicitud = PrioridadSolicitud.SIN_ASIGNAR,
+    val respuesta: String = ""
 )
 
 // ---------------------------------------------------------------
-// VIEWMODEL: guarda la lista de tickets FUERA de la sesión.
-// Un ViewModel vive mientras la app esté abierta: sobrevive al
-// cierre de sesión y a girar el teléfono. Por eso un Docente puede
-// crear un ticket, cerrar sesión, y el Interno lo verá al entrar.
-// (Si se cierra la app por completo, los tickets se pierden.)
+// VIEWMODEL
 // ---------------------------------------------------------------
 class SolicitudesViewModel : ViewModel() {
-    // Lista observable: al cambiar, las pantallas se redibujan solas
     val solicitudes = mutableStateListOf<Solicitud>()
 
-    // Crea un ticket nuevo y lo agrega al inicio de la lista
     fun crear(asunto: String, foto: Uri?, solicitante: String) {
         val numero = (solicitudes.maxOfOrNull { it.numero } ?: 0) + 1
         val fecha = SimpleDateFormat("dd-MM-yyyy HH:mm", Locale("es", "CL")).format(Date())
         solicitudes.add(0, Solicitud(numero, asunto, foto, solicitante, fecha))
     }
 
-    // Cambia el estado y la respuesta de un ticket.
-    // Como Solicitud es inmutable, se reemplaza por una copia modificada.
+    // Usado por el Interno para cambiar estado y respuesta
     fun actualizar(numero: Int, estado: EstadoSolicitud, respuesta: String) {
         val indice = solicitudes.indexOfFirst { it.numero == numero }
         if (indice >= 0) {
@@ -81,7 +87,14 @@ class SolicitudesViewModel : ViewModel() {
         }
     }
 
-    // Elimina un ticket por su número
+    // Usado por el Administrador para clasificar la prioridad
+    fun actualizarPrioridad(numero: Int, prioridad: PrioridadSolicitud) {
+        val indice = solicitudes.indexOfFirst { it.numero == numero }
+        if (indice >= 0) {
+            solicitudes[indice] = solicitudes[indice].copy(prioridad = prioridad)
+        }
+    }
+
     fun eliminar(numero: Int) {
         solicitudes.removeAll { it.numero == numero }
     }
@@ -89,36 +102,34 @@ class SolicitudesViewModel : ViewModel() {
 
 // ---------------------------------------------------------------
 // PANTALLA PRINCIPAL DEL MÓDULO
-// Según el rol, muestra cosas distintas:
-//  - Docente: sus tickets + botón para crear.
-//  - Interno: todos los tickets + pantalla para gestionarlos.
 // ---------------------------------------------------------------
 @Composable
 fun PantallaSolicitudes(correo: String, rol: Rol, viewModel: SolicitudesViewModel) {
-    val esInterno = rol == Rol.INTERNO
-
-    // true = se muestra el formulario de nueva solicitud (solo Docente)
     var creando by rememberSaveable { mutableStateOf(false) }
-    // Número del ticket que el Interno está gestionando (null = ninguno)
     var seleccionada by rememberSaveable { mutableStateOf<Int?>(null) }
 
-    // El Interno ve todos los tickets; el Docente, solo los suyos
-    val visibles = if (esInterno) viewModel.solicitudes
-    else viewModel.solicitudes.filter { it.solicitante == correo }
+    // Lista filtrada y ordenada según el rol
+    val visibles = when (rol) {
+        Rol.DOCENTE -> viewModel.solicitudes.filter { it.solicitante == correo }
+        // El Interno ve todos ordenados por prioridad (Crítica -> Alta -> Media -> Baja -> Sin asignar)
+        Rol.INTERNO -> viewModel.solicitudes.sortedBy { it.prioridad.nivelOrden }
+        // El Administrador ve todos poniendo primero los que faltan por clasificar
+        Rol.ADMINISTRADOR -> viewModel.solicitudes.sortedBy {
+            if (it.prioridad == PrioridadSolicitud.SIN_ASIGNAR) 0 else 1
+        }
+    }
 
-    // Ticket abierto en la pantalla de gestión (si hay uno seleccionado)
     val ticket = visibles.firstOrNull { it.numero == seleccionada }
 
-    // Decide qué pantalla mostrar
     when {
-        creando -> FormularioSolicitud(
+        creando && rol == Rol.DOCENTE -> FormularioSolicitud(
             onCancelar = { creando = false },
             onEnviar = { asunto, foto ->
                 viewModel.crear(asunto, foto, correo)
                 creando = false
             }
         )
-        ticket != null -> GestionSolicitud(
+        ticket != null && rol == Rol.INTERNO -> GestionSolicitud(
             solicitud = ticket,
             onCancelar = { seleccionada = null },
             onGuardar = { estado, respuesta ->
@@ -126,11 +137,19 @@ fun PantallaSolicitudes(correo: String, rol: Rol, viewModel: SolicitudesViewMode
                 seleccionada = null
             }
         )
+        ticket != null && rol == Rol.ADMINISTRADOR -> ClasificarPrioridadSolicitud(
+            solicitud = ticket,
+            onCancelar = { seleccionada = null },
+            onGuardar = { nuevaPrioridad ->
+                viewModel.actualizarPrioridad(ticket.numero, nuevaPrioridad)
+                seleccionada = null
+            }
+        )
         else -> BandejaSolicitudes(
             solicitudes = visibles,
-            esInterno = esInterno,
+            rol = rol,
             onNueva = { creando = true },
-            onGestionar = { seleccionada = it.numero },
+            onAccionPrincipal = { seleccionada = it.numero },
             onEliminar = { viewModel.eliminar(it.numero) }
         )
     }
@@ -142,9 +161,9 @@ fun PantallaSolicitudes(correo: String, rol: Rol, viewModel: SolicitudesViewMode
 @Composable
 private fun BandejaSolicitudes(
     solicitudes: List<Solicitud>,
-    esInterno: Boolean,
+    rol: Rol,
     onNueva: () -> Unit,
-    onGestionar: (Solicitud) -> Unit,
+    onAccionPrincipal: (Solicitud) -> Unit,
     onEliminar: (Solicitud) -> Unit
 ) {
     Column(
@@ -152,8 +171,7 @@ private fun BandejaSolicitudes(
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        // Solo el Docente puede crear solicitudes
-        if (!esInterno) {
+        if (rol == Rol.DOCENTE) {
             Button(
                 onClick = onNueva,
                 modifier = Modifier.fillMaxWidth(),
@@ -169,28 +187,40 @@ private fun BandejaSolicitudes(
 
         if (solicitudes.isEmpty()) {
             Text(
-                if (esInterno) "No hay solicitudes pendientes."
-                else "Aún no has creado solicitudes."
+                when (rol) {
+                    Rol.DOCENTE -> "Aún no has creado solicitudes."
+                    Rol.INTERNO -> "No hay solicitudes pendientes."
+                    Rol.ADMINISTRADOR -> "No hay tickets registrados para clasificar."
+                }
             )
         } else {
-            // Resumen: el Interno ve cuántas faltan por resolver
-            val pendientes = solicitudes.count { it.estado != EstadoSolicitud.RESUELTA }
-            Text(
-                if (esInterno) "Solicitudes: ${solicitudes.size} (pendientes: $pendientes)"
-                else "Mis solicitudes (${solicitudes.size})",
-                style = MaterialTheme.typography.titleMedium
-            )
+            val encabezado = when (rol) {
+                Rol.DOCENTE -> "Mis solicitudes (${solicitudes.size})"
+                Rol.INTERNO -> {
+                    val pendientes = solicitudes.count { it.estado != EstadoSolicitud.RESUELTA }
+                    "Solicitudes: ${solicitudes.size} (pendientes: $pendientes)"
+                }
+                Rol.ADMINISTRADOR -> {
+                    val sinClasificar = solicitudes.count { it.prioridad == PrioridadSolicitud.SIN_ASIGNAR }
+                    "Total tickets: ${solicitudes.size} (sin clasificar: $sinClasificar)"
+                }
+            }
+            Text(encabezado, style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(8.dp))
 
             LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(solicitudes, key = { it.numero }) { solicitud ->
                     TarjetaSolicitud(
                         solicitud = solicitud,
-                        // El botón "Gestionar" solo existe para el Interno.
-                        // (Las llaves dobles: las externas son del if, las internas, la lambda.)
-                        onGestionar = if (esInterno) { { onGestionar(solicitud) } } else null,
-                        // El Docente solo puede eliminar tickets que siguen abiertos
-                        onEliminar = if (!esInterno && solicitud.estado == EstadoSolicitud.ABIERTA) {
+                        textoAccionPrincipal = when (rol) {
+                            Rol.INTERNO -> "Gestionar"
+                            Rol.ADMINISTRADOR -> "Clasificar prioridad"
+                            Rol.DOCENTE -> null
+                        },
+                        onAccionPrincipal = if (rol != Rol.DOCENTE) {
+                            { onAccionPrincipal(solicitud) }
+                        } else null,
+                        onEliminar = if (rol == Rol.DOCENTE && solicitud.estado == EstadoSolicitud.ABIERTA) {
                             { onEliminar(solicitud) }
                         } else null
                     )
@@ -201,13 +231,13 @@ private fun BandejaSolicitudes(
 }
 
 // ---------------------------------------------------------------
-// TARJETA: muestra un ticket. Los botones aparecen solo si se
-// les pasa una acción (si es null, no se dibujan).
+// TARJETA DE TICKET
 // ---------------------------------------------------------------
 @Composable
 private fun TarjetaSolicitud(
     solicitud: Solicitud,
-    onGestionar: (() -> Unit)?,
+    textoAccionPrincipal: String?,
+    onAccionPrincipal: (() -> Unit)?,
     onEliminar: (() -> Unit)?
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -225,6 +255,13 @@ private fun TarjetaSolicitud(
                 )
             }
             Spacer(Modifier.height(4.dp))
+            Text(
+                text = "Prioridad: ${solicitud.prioridad.etiqueta}",
+                color = colorPrioridad(solicitud.prioridad),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(4.dp))
             Text(solicitud.asunto, style = MaterialTheme.typography.bodyLarge)
             Spacer(Modifier.height(4.dp))
             Text(
@@ -232,7 +269,6 @@ private fun TarjetaSolicitud(
                 style = MaterialTheme.typography.bodySmall
             )
 
-            // Foto (solo si existe)
             solicitud.fotoUri?.let { uri ->
                 Spacer(Modifier.height(8.dp))
                 ImagenDesdeUri(
@@ -244,23 +280,22 @@ private fun TarjetaSolicitud(
                 )
             }
 
-            // Respuesta del Interno (solo si ya escribió una)
             if (solicitud.respuesta.isNotBlank()) {
                 Spacer(Modifier.height(8.dp))
                 Text("Respuesta del equipo:", style = MaterialTheme.typography.labelLarge)
                 Text(solicitud.respuesta, style = MaterialTheme.typography.bodyMedium)
             }
 
-            // Botones según el rol
             Row {
-                onGestionar?.let { TextButton(onClick = it) { Text("Gestionar") } }
+                if (onAccionPrincipal != null && textoAccionPrincipal != null) {
+                    TextButton(onClick = onAccionPrincipal) { Text(textoAccionPrincipal) }
+                }
                 onEliminar?.let { TextButton(onClick = it) { Text("Eliminar") } }
             }
         }
     }
 }
 
-// Color del texto de estado, para distinguirlos de un vistazo
 @Composable
 private fun colorEstado(estado: EstadoSolicitud): Color = when (estado) {
     EstadoSolicitud.ABIERTA -> MaterialTheme.colorScheme.error
@@ -268,8 +303,98 @@ private fun colorEstado(estado: EstadoSolicitud): Color = when (estado) {
     EstadoSolicitud.RESUELTA -> MaterialTheme.colorScheme.tertiary
 }
 
+@Composable
+private fun colorPrioridad(prioridad: PrioridadSolicitud): Color = when (prioridad) {
+    PrioridadSolicitud.CRITICA -> MaterialTheme.colorScheme.error
+    PrioridadSolicitud.ALTA -> Color(0xFFD84315)
+    PrioridadSolicitud.MEDIA -> MaterialTheme.colorScheme.primary
+    PrioridadSolicitud.BAJA -> MaterialTheme.colorScheme.tertiary
+    PrioridadSolicitud.SIN_ASIGNAR -> MaterialTheme.colorScheme.outline
+}
+
 // ---------------------------------------------------------------
-// GESTIÓN (solo Interno): cambiar estado y escribir una respuesta
+// PANTALLA DE CLASIFICACIÓN (solo Administrador)
+// ---------------------------------------------------------------
+@Composable
+private fun ClasificarPrioridadSolicitud(
+    solicitud: Solicitud,
+    onCancelar: () -> Unit,
+    onGuardar: (PrioridadSolicitud) -> Unit
+) {
+    var prioridadSeleccionada by rememberSaveable { mutableStateOf(solicitud.prioridad) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
+    ) {
+        Text("Clasificar Ticket #${solicitud.numero}", style = MaterialTheme.typography.headlineSmall)
+        Spacer(Modifier.height(8.dp))
+
+        Text(solicitud.asunto, style = MaterialTheme.typography.bodyLarge)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "${solicitud.fecha} · ${solicitud.solicitante}",
+            style = MaterialTheme.typography.bodySmall
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "Estado actual: ${solicitud.estado.etiqueta}",
+            style = MaterialTheme.typography.labelLarge,
+            color = colorEstado(solicitud.estado)
+        )
+
+        solicitud.fotoUri?.let { uri ->
+            Spacer(Modifier.height(8.dp))
+            ImagenDesdeUri(
+                uri = uri,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(220.dp)
+                    .clip(RoundedCornerShape(8.dp))
+            )
+        }
+
+        Spacer(Modifier.height(16.dp))
+        Text("Selecciona el nivel de prioridad:", style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(4.dp))
+
+        PrioridadSolicitud.values().forEach { opcion ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(
+                    selected = prioridadSeleccionada == opcion,
+                    onClick = { prioridadSeleccionada = opcion }
+                )
+                Text(
+                    text = opcion.etiqueta,
+                    color = colorPrioridad(opcion),
+                    fontWeight = if (prioridadSeleccionada == opcion) FontWeight.Bold else FontWeight.Normal
+                )
+            }
+        }
+
+        Spacer(Modifier.height(24.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedButton(onClick = onCancelar, modifier = Modifier.weight(1f)) {
+                Text("Cancelar")
+            }
+            Button(
+                onClick = { onGuardar(prioridadSeleccionada) },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            ) {
+                Text("Guardar prioridad")
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------
+// GESTIÓN (solo Interno)
 // ---------------------------------------------------------------
 @Composable
 private fun GestionSolicitud(
@@ -277,7 +402,6 @@ private fun GestionSolicitud(
     onCancelar: () -> Unit,
     onGuardar: (EstadoSolicitud, String) -> Unit
 ) {
-    // Los campos parten con los valores actuales del ticket
     var estado by rememberSaveable { mutableStateOf(solicitud.estado) }
     var respuesta by rememberSaveable { mutableStateOf(solicitud.respuesta) }
 
@@ -288,9 +412,14 @@ private fun GestionSolicitud(
             .padding(16.dp)
     ) {
         Text("Ticket #${solicitud.numero}", style = MaterialTheme.typography.headlineSmall)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "Prioridad asignada: ${solicitud.prioridad.etiqueta}",
+            color = colorPrioridad(solicitud.prioridad),
+            style = MaterialTheme.typography.titleSmall
+        )
         Spacer(Modifier.height(8.dp))
 
-        // Datos del ticket (solo lectura)
         Text(solicitud.asunto, style = MaterialTheme.typography.bodyLarge)
         Spacer(Modifier.height(4.dp))
         Text(
@@ -310,7 +439,6 @@ private fun GestionSolicitud(
 
         Spacer(Modifier.height(16.dp))
         Text("Estado", style = MaterialTheme.typography.titleMedium)
-        // Un botón de radio por cada estado posible
         EstadoSolicitud.values().forEach { opcion ->
             Row(verticalAlignment = Alignment.CenterVertically) {
                 RadioButton(selected = estado == opcion, onClick = { estado = opcion })
@@ -347,7 +475,7 @@ private fun GestionSolicitud(
 }
 
 // ---------------------------------------------------------------
-// FORMULARIO (solo Docente): asunto obligatorio + foto opcional
+// FORMULARIO (solo Docente)
 // ---------------------------------------------------------------
 @Composable
 private fun FormularioSolicitud(
@@ -358,11 +486,10 @@ private fun FormularioSolicitud(
     var foto by rememberSaveable { mutableStateOf<Uri?>(null) }
     var error by rememberSaveable { mutableStateOf<String?>(null) }
 
-    // Selector de fotos del sistema (no requiere permisos)
     val selectorFoto = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
     ) { uri ->
-        if (uri != null) foto = uri // Si cancela, uri es null y no cambia nada
+        if (uri != null) foto = uri
     }
 
     Column(
@@ -443,7 +570,6 @@ private fun FormularioSolicitud(
 
 // ---------------------------------------------------------------
 // IMAGEN DESDE UN URI
-// Carga la foto en segundo plano y la reduce para ahorrar memoria.
 // ---------------------------------------------------------------
 @Composable
 private fun ImagenDesdeUri(uri: Uri, modifier: Modifier = Modifier) {

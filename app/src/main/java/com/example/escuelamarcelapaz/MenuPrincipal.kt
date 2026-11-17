@@ -6,22 +6,22 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
 
-// Secciones del menú lateral
 enum class Seccion {
     INICIO,
     SOLICITUDES;
 
-    // El nombre de la sección depende del rol:
-    // el Docente ve "Mis solicitudes" y el Interno "Bandeja de solicitudes"
     fun titulo(rol: Rol): String = when (this) {
         INICIO -> "Inicio"
-        SOLICITUDES -> if (rol == Rol.INTERNO) "Bandeja de solicitudes" else "Mis solicitudes"
+        SOLICITUDES -> when (rol) {
+            Rol.DOCENTE -> "Mis solicitudes"
+            Rol.INTERNO -> "Bandeja de solicitudes"
+            Rol.ADMINISTRADOR -> "Clasificar prioridades"
+        }
     }
 }
 
@@ -31,7 +31,7 @@ fun MenuPrincipal(
     nombre: String,
     correo: String,
     rol: Rol,
-    solicitudesViewModel: SolicitudesViewModel, // Lista compartida, viene de MainActivity
+    solicitudesViewModel: SolicitudesViewModel,
     onCerrarSesion: () -> Unit
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -42,7 +42,6 @@ fun MenuPrincipal(
         drawerState = drawerState,
         drawerContent = {
             ModalDrawerSheet {
-                // Encabezado
                 Column(
                     Modifier
                         .fillMaxWidth()
@@ -59,7 +58,6 @@ fun MenuPrincipal(
                     Text(rol.etiqueta, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
                     Text(correo, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
-                // Franja amarilla oficial bajo el encabezado
                 HorizontalDivider(thickness = 4.dp, color = MaterialTheme.colorScheme.secondaryContainer)
 
                 Seccion.values().forEach { item ->
@@ -111,7 +109,6 @@ fun MenuPrincipal(
             ) {
                 when (seccion) {
                     Seccion.INICIO -> PantallaBienvenida(nombre, correo, rol)
-                    // Se le pasa el rol para que la pantalla muestre lo que corresponde
                     Seccion.SOLICITUDES -> PantallaSolicitudes(correo, rol, solicitudesViewModel)
                 }
             }
@@ -121,6 +118,9 @@ fun MenuPrincipal(
 
 @Composable
 fun PantallaBienvenida(nombre: String, correo: String, rol: Rol) {
-    // ...dentro del Column, cambia el primer Text por:
-    Text("¡Bienvenido/a, $nombre!", style = MaterialTheme.typography.headlineMedium)
+    Column(modifier = Modifier.padding(16.dp)) {
+        Text("¡Bienvenido/a, $nombre!", style = MaterialTheme.typography.headlineMedium)
+        Spacer(Modifier.height(8.dp))
+        Text("Rol activo: ${rol.etiqueta}", style = MaterialTheme.typography.bodyLarge)
+    }
 }

@@ -17,15 +17,12 @@ import androidx.compose.ui.unit.dp
 // Roles disponibles. "etiqueta" es el texto que se muestra al usuario.
 enum class Rol(val etiqueta: String) {
     DOCENTE("Docente"),
-    INTERNO("Interno")
+    INTERNO("Interno"),
+    ADMINISTRADOR("Administrador")
 }
 
 // ---------------------------------------------------------------
 // LOGIN
-// - mensaje: aviso opcional (por ejemplo, "Cuenta creada")
-// - onIniciarSesion: recibe correo y contraseña y devuelve un
-//   mensaje de error, o null si el inicio de sesión fue correcto
-// - onIrARegistro: se llama al pulsar "Crear cuenta"
 // ---------------------------------------------------------------
 @Composable
 fun LoginScreen(
@@ -49,7 +46,6 @@ fun LoginScreen(
         Text("Iniciar sesión", style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(16.dp))
 
-        // Aviso positivo (por ejemplo, tras registrarse)
         mensaje?.let {
             Text(it, color = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(12.dp))
@@ -92,7 +88,6 @@ fun LoginScreen(
                 if (correo.isBlank() || contrasena.isBlank()) {
                     error = "Ingresa tu correo y contraseña"
                 } else {
-                    // Si el login falla, MainActivity devuelve el mensaje de error
                     error = onIniciarSesion(correo.trim(), contrasena)
                 }
             },
