@@ -1,5 +1,10 @@
 package com.example.escuelamarcelapaz
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -46,9 +51,17 @@ fun LoginScreen(
         Text("Iniciar sesión", style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(16.dp))
 
-        mensaje?.let {
-            Text(it, color = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.height(12.dp))
+        AnimatedVisibility(
+            visible = mensaje != null,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            mensaje?.let {
+                Column {
+                    Text(it, color = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.height(12.dp))
+                }
+            }
         }
 
         OutlinedTextField(
@@ -77,9 +90,17 @@ fun LoginScreen(
             modifier = Modifier.fillMaxWidth()
         )
 
-        error?.let {
-            Spacer(Modifier.height(8.dp))
-            Text(it, color = MaterialTheme.colorScheme.error)
+        AnimatedVisibility(
+            visible = error != null,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            error?.let {
+                Column {
+                    Spacer(Modifier.height(8.dp))
+                    Text(it, color = MaterialTheme.colorScheme.error)
+                }
+            }
         }
 
         Spacer(Modifier.height(24.dp))

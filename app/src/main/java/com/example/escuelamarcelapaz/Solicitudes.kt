@@ -5,6 +5,14 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -121,37 +129,50 @@ fun PantallaSolicitudes(correo: String, rol: Rol, viewModel: SolicitudesViewMode
 
     val ticket = visibles.firstOrNull { it.numero == seleccionada }
 
-    when {
-        creando && rol == Rol.DOCENTE -> FormularioSolicitud(
-            onCancelar = { creando = false },
-            onEnviar = { asunto, foto ->
-                viewModel.crear(asunto, foto, correo)
-                creando = false
-            }
-        )
-        ticket != null && rol == Rol.INTERNO -> GestionSolicitud(
-            solicitud = ticket,
-            onCancelar = { seleccionada = null },
-            onGuardar = { estado, respuesta ->
-                viewModel.actualizar(ticket.numero, estado, respuesta)
-                seleccionada = null
-            }
-        )
-        ticket != null && rol == Rol.ADMINISTRADOR -> ClasificarPrioridadSolicitud(
-            solicitud = ticket,
-            onCancelar = { seleccionada = null },
-            onGuardar = { nuevaPrioridad ->
-                viewModel.actualizarPrioridad(ticket.numero, nuevaPrioridad)
-                seleccionada = null
-            }
-        )
-        else -> BandejaSolicitudes(
-            solicitudes = visibles,
-            rol = rol,
-            onNueva = { creando = true },
-            onAccionPrincipal = { seleccionada = it.numero },
-            onEliminar = { viewModel.eliminar(it.numero) }
-        )
+    val vistaActual = when {
+        creando && rol == Rol.DOCENTE -> "CREAR"
+        ticket != null && rol == Rol.INTERNO -> "GESTIONAR_${ticket.numero}"
+        ticket != null && rol == Rol.ADMINISTRADOR -> "CLASIFICAR_${ticket.numero}"
+        else -> "BANDEJA"
+    }
+
+    AnimatedContent(
+        targetState = vistaActual,
+        transitionSpec = { fadeIn() togetherWith fadeOut() },
+        label = "TransicionSolicitudes"
+    ) { vista ->
+        when {
+            vista == "CREAR" -> FormularioSolicitud(
+                onCancelar = { creando = false },
+                onEnviar = { asunto, foto ->
+                    viewModel.crear(asunto, foto, correo)
+                    creando = false
+                }
+            )
+            vista.startsWith("GESTIONAR_") && ticket != null -> GestionSolicitud(
+                solicitud = ticket,
+                onCancelar = { seleccionada = null },
+                onGuardar = { estado, respuesta ->
+                    viewModel.actualizar(ticket.numero, estado, respuesta)
+                    seleccionada = null
+                }
+            )
+            vista.startsWith("CLASIFICAR_") && ticket != null -> ClasificarPrioridadSolicitud(
+                solicitud = ticket,
+                onCancelar = { seleccionada = null },
+                onGuardar = { nuevaPrioridad ->
+                    viewModel.actualizarPrioridad(ticket.numero, nuevaPrioridad)
+                    seleccionada = null
+                }
+            )
+            else -> BandejaSolicitudes(
+                solicitudes = visibles,
+                rol = rol,
+                onNueva = { creando = true },
+                onAccionPrincipal = { seleccionada = it.numero },
+                onEliminar = { viewModel.eliminar(it.numero) }
+            )
+        }
     }
 }
 
@@ -212,6 +233,7 @@ private fun BandejaSolicitudes(
                 items(solicitudes, key = { it.numero }) { solicitud ->
                     TarjetaSolicitud(
                         solicitud = solicitud,
+                        modifier = Modifier.animateItem(),
                         textoAccionPrincipal = when (rol) {
                             Rol.INTERNO -> "Gestionar"
                             Rol.ADMINISTRADOR -> "Clasificar prioridad"
@@ -238,9 +260,19 @@ private fun TarjetaSolicitud(
     solicitud: Solicitud,
     textoAccionPrincipal: String?,
     onAccionPrincipal: (() -> Unit)?,
-    onEliminar: (() -> Unit)?
+    onEliminar: (() -> Unit)?,
+    modifier: Modifier = Modifier
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    val colorEstadoAnimado by animateColorAsState(
+        targetValue = colorEstado(solicitud.estado),
+        label = "ColorEstado"
+    )
+    val colorPrioridadAnimado by animateColorAsState(
+        targetValue = colorPrioridad(solicitud.prioridad),
+        label = "ColorPrioridad"
+    )
+
+    Card(modifier = modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -250,14 +282,14 @@ private fun TarjetaSolicitud(
                 Text("Ticket #${solicitud.numero}", style = MaterialTheme.typography.titleSmall)
                 Text(
                     solicitud.estado.etiqueta,
-                    color = colorEstado(solicitud.estado),
+                    color = colorEstadoAnimado,
                     style = MaterialTheme.typography.labelLarge
                 )
             }
             Spacer(Modifier.height(4.dp))
             Text(
                 text = "Prioridad: ${solicitud.prioridad.etiqueta}",
-                color = colorPrioridad(solicitud.prioridad),
+                color = colorPrioridadAnimado,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -526,21 +558,37 @@ private fun FormularioSolicitud(
             Text(if (foto == null) "Adjuntar foto" else "Cambiar foto")
         }
 
-        foto?.let { uri ->
-            Spacer(Modifier.height(8.dp))
-            ImagenDesdeUri(
-                uri = uri,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .clip(RoundedCornerShape(8.dp))
-            )
-            TextButton(onClick = { foto = null }) { Text("Quitar foto") }
+        AnimatedVisibility(
+            visible = foto != null,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            foto?.let { uri ->
+                Column {
+                    Spacer(Modifier.height(8.dp))
+                    ImagenDesdeUri(
+                        uri = uri,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                    )
+                    TextButton(onClick = { foto = null }) { Text("Quitar foto") }
+                }
+            }
         }
 
-        error?.let {
-            Spacer(Modifier.height(8.dp))
-            Text(it, color = MaterialTheme.colorScheme.error)
+        AnimatedVisibility(
+            visible = error != null,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            error?.let {
+                Column {
+                    Spacer(Modifier.height(8.dp))
+                    Text(it, color = MaterialTheme.colorScheme.error)
+                }
+            }
         }
 
         Spacer(Modifier.height(24.dp))

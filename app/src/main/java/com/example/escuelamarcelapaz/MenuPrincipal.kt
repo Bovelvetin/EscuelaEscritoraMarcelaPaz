@@ -1,5 +1,7 @@
 package com.example.escuelamarcelapaz
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
@@ -9,7 +11,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
-import androidx.compose.foundation.background
 
 enum class Seccion {
     INICIO,
@@ -107,9 +108,11 @@ fun MenuPrincipal(
                     .padding(padding)
                     .fillMaxSize()
             ) {
-                when (seccion) {
-                    Seccion.INICIO -> PantallaBienvenida(nombre, correo, rol)
-                    Seccion.SOLICITUDES -> PantallaSolicitudes(correo, rol, solicitudesViewModel)
+                Crossfade(targetState = seccion, label = "TransicionSeccion") { seccionActual ->
+                    when (seccionActual) {
+                        Seccion.INICIO -> PantallaBienvenida(nombre, correo, rol)
+                        Seccion.SOLICITUDES -> PantallaSolicitudes(correo, rol, solicitudesViewModel)
+                    }
                 }
             }
         }
